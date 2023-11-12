@@ -22,6 +22,7 @@ a tcp connection monitor that use libpcap to capture network data.
    make
    ```
 ## Usage
+```sh
 Usage ./build/tcp_monitor: <-i interface|ALL> <-t interface_type(wifi/eth)> [-s] [-o output_file] [-l log_file==stderr] [-h help]
-
+```
 Where -s option stands for "Output to stdout"
