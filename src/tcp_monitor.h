@@ -1,7 +1,6 @@
 #ifndef __TCP_MONITOR_H
 #define __TCP_MONITOR_H
 
-#include <pthread.h>
 #include <glib.h>
 #include <pcap.h>
 #include <stdio.h>
@@ -19,10 +18,8 @@
 #define FAILED_CONNECTION_STR "FAILED %s:%d -> %s:%d COUNT %d\n"
 
 #define TCP_CONNECTION_LOG(fmt, ...) do { \
-	if (is_multithread) pthread_mutex_lock(&log_lock);\
 	fprintf(log_file, "%s:%d: " fmt, __FUNCTION__, __LINE__,##__VA_ARGS__); \
 	fflush(log_file); \
-	if (is_multithread) pthread_mutex_unlock(&log_lock);\
 } while(0)
 
 extern volatile int keep_running;
@@ -30,13 +27,7 @@ extern FILE *log_file;
 extern FILE *output_file;
 extern int print_to_stdout;
 
-extern int is_multithread;
-extern pthread_mutex_t log_lock;
-extern pthread_mutex_t output_lock;
-
 typedef struct _tcp_connection_counter_interface_ctx_t {
-	pthread_t thread_id;
-	int thread_retval;
 	GHashTable *connection_data;
 	GHashTable *failed_connection_data;
 	char *interface_name;

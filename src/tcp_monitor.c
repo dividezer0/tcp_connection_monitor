@@ -52,6 +52,7 @@ static void read_options(int argc, char**argv, tcp_connection_counter_ctx_t *ctx
 		case 'i':
 			if (!strcmp(optarg, "ALL")) {
 				ctx->all_interfaces = 1;
+				*is_help = 1; //temp
 			} else {
 				ctx->interface_name = optarg;
 			}
@@ -184,32 +185,6 @@ out:
 	return err;
 }
 
-static int run_threads_and_join(tcp_connection_counter_ctx_t *ctx)
-{
-	int *thread_ret;
-	int ret = 0;
-
-	g_hash_table_foreach(ctx->interfaces, init_thread, ctx);
-
-	if (!keep_running) {
-		TCP_CONNECTION_LOG("Failed to init threads\n");
-
-		for (int i = 0; i < ctx->interfaces_count && ctx->interfaces_data[i].interface_name; i++) {
-			pthread_cancel(ctx->interfaces_data[i].thread_id);
-		}
-	}
-
-	for (int i = 0; i < ctx->interfaces_count && ctx->interfaces_data[i].interface_name; i++) {
-		pthread_join(ctx->interfaces_data[i].thread_id, &thread_ret);
-		if (thread_ret && (*thread_ret)) {
-			TCP_CONNECTION_LOG("Thread %i returned %d\n", i, *((int *)thread_ret));
-			ret = ret && (*((int *)thread_ret));
-		}
-	}
-
-	return ret;
-}
-
 static int configure_global_context(tcp_connection_counter_ctx_t *ctx) {
 	int ret;
 	GHashTableIter iter;
@@ -255,40 +230,19 @@ static int run_tcp_monitor(tcp_connection_counter_ctx_t *ctx) {
 	char *interface_name;
 
 	assert(ctx);
-
-	if (ctx->interfaces_count > 1) {
-		
-		ret = pthread_mutex_init(&log_lock, NULL); 
-		if (ret) { 
-			TCP_CONNECTION_LOG("Log file mutex init has failed\n"); 
-			goto out; 
-    	}
-
-		ret = pthread_mutex_init(&output_lock, NULL); 
-		if (ret) { 
-			TCP_CONNECTION_LOG("Log file mutex init has failed\n"); 
-			goto out; 
-    	}
 	
-		is_multithread = 1;
-
-		ret = run_threads_and_join(ctx);
-		if (ret) {
-			goto out;
-		}
-	} else {	
-		ret = configure_interface_ctx(ctx->interface_name, ctx->interfaces_data);
-		if (ret) {
-			TCP_CONNECTION_LOG("Failed to configure interface data for interface %s\n", ctx->interfaces_data->interface_name);
-			goto out;
-		}
-
-		ret = run_pcap(ctx->interfaces_data);
-		if (ret) {
-			TCP_CONNECTION_LOG("Tcp monitor on interface %s ended with error\n", ctx->interfaces_data->interface_name);
-			goto out;
-		}
+	ret = configure_interface_ctx(ctx->interface_name, ctx->interfaces_data);
+	if (ret) {
+		TCP_CONNECTION_LOG("Failed to configure interface data for interface %s\n", ctx->interfaces_data->interface_name);
+		goto out;
 	}
+
+	ret = run_pcap(ctx->interfaces_data);
+	if (ret) {
+		TCP_CONNECTION_LOG("Tcp monitor ended with error\n");
+		goto out;
+	}
+
 
 out:
 	return ret;
@@ -347,10 +301,6 @@ int main(int argc, char **argv)
 	}
 
 out:
-	if (is_multithread) {
-		pthread_mutex_destroy(&log_lock); 
-		pthread_mutex_destroy(&output_lock);
-	}
 
 	clean_global_context(&ctx);
 
