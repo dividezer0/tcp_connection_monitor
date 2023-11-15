@@ -28,23 +28,24 @@ extern FILE *output_file;
 extern int print_to_stdout;
 
 typedef struct _tcp_connection_counter_interface_ctx_t {
-	GHashTable *connection_data;
-	GHashTable *failed_connection_data;
 	char *interface_name;
 	int is_interface_wifi;
 	pcap_t *handle;
 	struct bpf_program compiled_filter_expr;
+	int fd;
 } tcp_connection_counter_interface_ctx_t;
 
 typedef struct _tcp_connection_counter_ctx_t {
 	char *output_filename;
 	char *log_filename;
-	GHashTable *interfaces;
+	char **interface_names;
 	int all_interfaces;
-	char *interface_name;
+	char *interface_name_from_cmd;
 	struct ifaddrs *addrs;
 	tcp_connection_counter_interface_ctx_t *interfaces_data;
 	uint32_t interfaces_count;
+	GHashTable *connection_data;
+	GHashTable *failed_connection_data;
 } tcp_connection_counter_ctx_t;
 
 typedef struct _tcp_connection_key_t{
@@ -60,19 +61,14 @@ typedef struct _tcp_failed_connection_val_t{
 	uint32_t port2; 
 } tcp_failed_connection_key_t;
 
-guint connection_data_hash(tcp_connection_key_t *key);
-gboolean connection_data_equal(tcp_connection_key_t *first, tcp_connection_key_t *second);
-guint failed_connection_data_hash(tcp_failed_connection_key_t *key);
-gboolean failed_connection_data_equal(tcp_failed_connection_key_t *first, tcp_failed_connection_key_t *second);
-int process_packet(tcp_connection_counter_interface_ctx_t *ctx, const uint8_t *packet);
+guint connection_data_hash(const void *arg);
+gboolean connection_data_equal(const void *first_arg, const void *second_arg);
+guint failed_connection_data_hash(const void *arg);
+gboolean failed_connection_data_equal(const void *first_arg, const void *second_arg);
+int process_packet(tcp_connection_counter_ctx_t *ctx, const uint8_t *packet);
 
-int run_pcap(tcp_connection_counter_interface_ctx_t *ctx);
+int run_pcap(tcp_connection_counter_ctx_t *ctx);
 void clean_pcup(tcp_connection_counter_interface_ctx_t *ctx);
 int configure_pcap(tcp_connection_counter_interface_ctx_t *interface_ctx);
-
-void *run_pcap_thread_cb(tcp_connection_counter_interface_ctx_t *ctx);
-void interface_ctx_free(tcp_connection_counter_interface_ctx_t *ctx);
-int configure_interface_ctx(char *interface_name, tcp_connection_counter_interface_ctx_t *ctx);
-void init_thread(gpointer key, gpointer value, tcp_connection_counter_ctx_t *ctx);
 
 #endif //__TCP_MONITOR_H

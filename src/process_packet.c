@@ -14,11 +14,6 @@ static void tcp_connection_report(const char *format,  ...) {
 	va_list args;
 
 	va_start(args, format);
-
-	if (is_multithread) {
-		pthread_mutex_lock(&output_lock);
-	}
-
 	if (output_file && output_file != stdout) {
 		vfprintf(output_file, format, args);
 	} 
@@ -28,17 +23,18 @@ static void tcp_connection_report(const char *format,  ...) {
 	}
 	
 	fflush(output_file);
-	
-	if (is_multithread) {
-		pthread_mutex_unlock(&output_lock);
-	}
 
 	va_end(args);
 }
 
 
-guint connection_data_hash(tcp_connection_key_t *key)
+guint connection_data_hash(const void *arg)
 {
+	tcp_connection_key_t *key;
+
+	assert(arg);
+
+	key = (tcp_connection_key_t *) arg;
 	guint res = g_int_hash(&key->ip1);
 	res |= g_int_hash(&key->ip2);
 	res |= g_int_hash(&key->port1);
@@ -46,8 +42,16 @@ guint connection_data_hash(tcp_connection_key_t *key)
 	return res;
 }
 
-gboolean connection_data_equal(tcp_connection_key_t *first, tcp_connection_key_t *second)
+gboolean connection_data_equal(const void *first_arg, const void *second_arg)
 {
+	tcp_connection_key_t *first,  *second;
+
+	assert(first_arg);
+	assert(second_arg);
+
+	first = (tcp_connection_key_t *)first_arg;
+	second = (tcp_connection_key_t *)second_arg;
+
 	if ((first->ip1 == second->ip1) && (first->ip2 == second->ip2) && (first->port1 == second->port1) &&
 			(first->port2 == second->port2)) {
 		return TRUE;	
@@ -56,16 +60,30 @@ gboolean connection_data_equal(tcp_connection_key_t *first, tcp_connection_key_t
 	return FALSE;
 }
 
-guint failed_connection_data_hash(tcp_failed_connection_key_t *key)
+guint failed_connection_data_hash(const void *arg)
 {
+	tcp_failed_connection_key_t *key;
+
+	assert(arg);
+
+	key = (tcp_failed_connection_key_t *)arg;
+
 	guint res = g_int_hash(&key->ip1);
 	res |= g_int_hash(&key->ip2);
 	res |= g_int_hash(&key->port2);
 	return res;
 }
 
-gboolean failed_connection_data_equal(tcp_failed_connection_key_t *first, tcp_failed_connection_key_t *second)
+gboolean failed_connection_data_equal(const void *first_arg, const void *second_arg)
 {
+	tcp_failed_connection_key_t *first,  *second;
+
+	assert(first_arg);
+	assert(second_arg);
+
+	first = (tcp_failed_connection_key_t *)first_arg;
+	second = (tcp_failed_connection_key_t *)second_arg;
+
 	if ((first->ip1 == second->ip1) && (first->ip2 == second->ip2) && (first->port2 == second->port2)) {
 		return TRUE;	
 	}
@@ -73,7 +91,12 @@ gboolean failed_connection_data_equal(tcp_failed_connection_key_t *first, tcp_fa
 	return FALSE;
 }
 
-static uint32_t get_failed_connection_counter(tcp_connection_counter_interface_ctx_t *ctx, tcp_connection_key_t *connection, uint32_t *failed_counter) {
+static uint32_t get_failed_connection_counter(
+	tcp_connection_counter_ctx_t *ctx,
+	tcp_connection_key_t *connection,
+	uint32_t *failed_counter
+)
+{
 	tcp_failed_connection_key_t *failed_connection_ptr;
 	uint32_t *failed_counter_ptr;
 	int ret = 0;
@@ -120,7 +143,7 @@ out:
 }
 
 static int process_stored_connection(
-	tcp_connection_counter_interface_ctx_t *ctx,
+	tcp_connection_counter_ctx_t *ctx,
 	tcp_connection_phases_t phase_packet,
 	tcp_connection_key_t *connection,
 	tcp_connection_phases_t *phase_stored
@@ -184,7 +207,7 @@ out:
 	return err;
 }
 
-int process_packet(tcp_connection_counter_interface_ctx_t *ctx, const uint8_t *packet)
+int process_packet(tcp_connection_counter_ctx_t *ctx, const uint8_t *packet)
 {
 	struct iphdr *ip_header;
 	struct tcphdr *tcp_header;
@@ -197,16 +220,17 @@ int process_packet(tcp_connection_counter_interface_ctx_t *ctx, const uint8_t *p
 	
 	assert(ctx);
 
-	if (ctx->is_interface_wifi) {
-		packet += WIFI_HEADER_LENGTH;
-	} else {
+	//TODO implement
+	// if (ctx->is_interface_wifi) {
+	// 	packet += WIFI_HEADER_LENGTH;
+	// } else {
 		packet += sizeof(struct ether_header);
-	}
+	// }
 
-	ip_header = packet;
+	ip_header = (struct iphdr *)packet;
 
 	packet += sizeof(*ip_header);
-	tcp_header = packet;
+	tcp_header = (struct tcphdr *)packet;
 
 	is_ack = !!(tcp_header->th_flags & TH_ACK);
 	is_syn = !!(tcp_header->th_flags & TH_SYN);
