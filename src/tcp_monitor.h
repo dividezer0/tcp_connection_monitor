@@ -29,7 +29,6 @@ extern int print_to_stdout;
 
 typedef struct _tcp_connection_counter_interface_ctx_t {
 	char *interface_name;
-	int is_interface_wifi;
 	pcap_t *handle;
 	struct bpf_program compiled_filter_expr;
 	int fd;

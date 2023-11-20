@@ -214,21 +214,16 @@ int process_packet(tcp_connection_counter_ctx_t *ctx, const uint8_t *packet)
 	tcp_connection_key_t *connection, *connection_orig;
 	tcp_connection_phases_t *phase_stored;
 	tcp_connection_phases_t phase_packet;
+
 	gboolean found;
 	int err = 0;
 	int is_syn, is_ack;
 	
 	assert(ctx);
 
-	//TODO implement
-	// if (ctx->is_interface_wifi) {
-	// 	packet += WIFI_HEADER_LENGTH;
-	// } else {
-		packet += sizeof(struct ether_header);
-	// }
+	packet += sizeof(struct ether_header);
 
 	ip_header = (struct iphdr *)packet;
-
 	packet += sizeof(*ip_header);
 	tcp_header = (struct tcphdr *)packet;
 

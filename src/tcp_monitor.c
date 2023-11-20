@@ -12,6 +12,11 @@
 
 #include <signal.h>
 
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <linux/wireless.h>
+
+
 volatile int keep_running = 1;
 FILE *log_file;
 FILE *output_file;
@@ -276,9 +281,44 @@ static void free_interfaces_ctx(tcp_connection_counter_ctx_t *ctx)
 	free_interfaces_names_set(ctx);
 }
 
+static int is_interface_wifi(char *interface, int *is_wifi)
+{
+	int err = 0;
+	int sock;
+	struct iwreq pwrq;
+
+	assert(is_wifi);
+
+	memset(&pwrq, 0, sizeof(pwrq));
+	strcpy(pwrq.ifr_name, interface);
+
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 1) {
+		TCP_CONNECTION_LOG("Failed to create socket on interface %s :%s\n", interface, strerror(errno));
+		goto out;
+	}
+
+	err = ioctl(sock, SIOCGIWNAME, &pwrq);
+	if ((err < 0) && (errno != ENOTTY) && (errno != EOPNOTSUPP)) {
+		TCP_CONNECTION_LOG("Failed to ioctl interface %s :%s\n", interface, strerror(errno));
+		goto out;
+	} else {
+		*is_wifi = err < 0;
+		err = 0;
+	}
+
+out:
+	if (sock >= 0) {
+		close(sock);
+	}
+
+	return err;
+}
+
 static int configure_interfaces_ctx(tcp_connection_counter_ctx_t *ctx)
 {
 	int err;
+	int is_wireless;
 
 	assert(ctx);
 
@@ -298,6 +338,16 @@ static int configure_interfaces_ctx(tcp_connection_counter_ctx_t *ctx)
 	for (int i = 0; i < ctx->interfaces_count; i++) {
 		ctx->interfaces_data[i].interface_name = ctx->interface_names[i];
 		
+		err = is_interface_wifi(ctx->interface_names[i], &is_wireless);
+		if (err) {
+			TCP_CONNECTION_LOG("Failed to determine whether interface %s has wireless extensions\n", ctx->interface_names[i]);
+			goto out;
+		} else if (is_wireless) {
+			TCP_CONNECTION_LOG("Wireless interface %s unsupported\n", ctx->interface_names[i]);
+			err = 1;
+			goto out;
+		}
+
 		err = configure_pcap(&ctx->interfaces_data[i]);
 		if (err) {
 			TCP_CONNECTION_LOG("Failed to configure pcap interface\n");
