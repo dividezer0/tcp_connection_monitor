@@ -13,16 +13,19 @@ DEPS := $(OBJS:.o=.d)
 INC_DIRS := $(SRC_DIRS) /usr/include/glib-2.0 /usr/lib/x86_64-linux-gnu/glib-2.0/include
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-# The -MMD and -MP flags together generate Makefiles for us!
-# These files will have .d instead of .o as the output.
 CFLAGS := $(INC_FLAGS)
+CXXFLAGS :=
 LDFLAGS := -lpcap -lpthread -lglib-2.0
 
-# The final build step.
-$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
-	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
+all: $(BUILD_DIR)/$(TARGET_EXEC)
 
-# Build step for C source
+debug: CFLAGS := -DDEBUG -g $(CFLAGS)
+debug: CXXFLAGS := -DDEBUG -g
+debug: $(BUILD_DIR)/$(TARGET_EXEC)
+
+$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $@ $(LDFLAGS)
+
 $(BUILD_DIR)/%.c.o: %.c
 	mkdir -p $(dir $@)
 	$(CXX) $(CFLAGS) -c $< -o $@
