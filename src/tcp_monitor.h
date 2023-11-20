@@ -14,8 +14,8 @@
 
 #define WIFI_HEADER_LENGTH (24)
 
-#define SUCCESS_CONNECTION_STR "SUCCESS %s:%d -> %s:%d\n"
-#define FAILED_CONNECTION_STR "FAILED %s:%d -> %s:%d COUNT %d\n"
+#define SUCCESS_CONNECTION_STR "SUCCESS %s:%d -> %s:%d\n" //ip_src, port_src -> ip_dst, port_dst
+#define FAILED_CONNECTION_STR "FAILED %s:%d -> %s:%d COUNT %d\n" //ip_src, port_src -> ip_dst, port_dst, failed_count
 
 #define TCP_CONNECTION_LOG(fmt, ...) do { \
 	fprintf(log_file, "%s:%d: " fmt, __FUNCTION__, __LINE__,##__VA_ARGS__); \
